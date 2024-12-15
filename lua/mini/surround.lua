@@ -711,6 +711,24 @@ MiniSurround.config = {
 --minidoc_afterlines_end
 
 -- Module functionality =======================================================
+MiniSurround.highlight_region = function(selection, hl)
+  if not selection then return end
+  vim.highlight.range(
+    0,
+    H.ns_id.highlight,
+    hl,
+    { selection.first_pos.line - 1, selection.first_pos.col - 1 },
+    { selection.last_pos.line - 1, selection.last_pos.col - 1 },
+    { inclusive = true }
+  )
+  vim.cmd.redraw()
+end
+
+MiniSurround.clear_highlights = function()
+  vim.api.nvim_buf_clear_namespace(0, H.ns_id.highlight, 0, -1)
+  vim.cmd.redraw()
+end
+
 --- Add surrounding
 ---
 --- No need to use it directly, everything is setup in |MiniSurround.setup|.
@@ -722,6 +740,11 @@ MiniSurround.add = function(mode)
 
   -- Get marks' positions based on current mode
   local marks = H.get_marks_pos(mode)
+  MiniSurround.highlight_region({
+    first_pos = marks.first,
+    last_pos = marks.second,
+  }, 'DiffAdd')
+  vim.defer_fn(MiniSurround.clear_highlights, 650)
 
   -- Get surround info. Try take from cache only in not visual mode (as there
   -- is no intended dot-repeatability).
@@ -800,6 +823,11 @@ MiniSurround.delete = function()
   -- Find input surrounding region
   local surr = H.find_surrounding(H.get_surround_spec('input', true))
   if surr == nil then return '<Esc>' end
+  MiniSurround.highlight_region({
+    first_pos = surr.left.to,
+    last_pos = surr.right.from,
+  }, 'DiffDelete')
+  vim.defer_fn(MiniSurround.clear_highlights, 650)
 
   -- Delete surrounding region. Begin with right to not break column numbers.
   H.region_replace(surr.right, {})
@@ -836,6 +864,11 @@ MiniSurround.replace = function()
   -- Find input surrounding region
   local surr = H.find_surrounding(H.get_surround_spec('input', true))
   if surr == nil then return '<Esc>' end
+  MiniSurround.highlight_region({
+    first_pos = surr.left.to,
+    last_pos = surr.right.from,
+  }, 'DiffAdd')
+  vim.defer_fn(MiniSurround.clear_highlights, 650)
 
   -- Get output surround info
   local new_surr_info = H.get_surround_spec('output', true)
